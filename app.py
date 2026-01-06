@@ -5,7 +5,6 @@ import os
 
 app = Flask(__name__)
 
-# 🔐 Server-side pagination tokens
 TOKEN_STORE = {}
 
 @app.route("/")
@@ -21,13 +20,9 @@ def get_reviews():
         return jsonify({"reviews": [], "token_id": None})
 
     try:
-        # 🔹 Extract App ID
         app_id = app_link.split("id=")[1].split("&")[0]
-
-        # 🔹 Get previous token
         continuation_token = TOKEN_STORE.get(token_id)
 
-        # 🔹 Fetch reviews
         result, new_token = reviews(
             app_id,
             lang="en",
@@ -51,10 +46,7 @@ def get_reviews():
             next_token_id = str(uuid.uuid4())
             TOKEN_STORE[next_token_id] = new_token
 
-        return jsonify({
-            "reviews": output,
-            "token_id": next_token_id
-        })
+        return jsonify({"reviews": output, "token_id": next_token_id})
 
     except Exception as e:
         print("Error:", e)
