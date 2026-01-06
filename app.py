@@ -4,7 +4,6 @@ import uuid
 import os
 
 app = Flask(__name__)
-
 TOKEN_STORE = {}
 
 @app.route("/")
