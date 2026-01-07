@@ -102,9 +102,9 @@ button.clear{
 }
 
 .scroll-btn{
-  position:absolute;
+  position:fixed;
   right:14px;
-  bottom:70px;   /* 🔥 pehle 18px tha */
+  bottom:80px;     /* safe height */
   padding:10px 14px;
   border-radius:999px;
   background:#2563eb;
@@ -112,8 +112,8 @@ button.clear{
   font-size:13px;
   font-weight:600;
   box-shadow:0 6px 18px rgba(0,0,0,.2);
-  display:none;
-  z-index:10;   /* 🔥 ensure upar dikhe */
+  display:block;   /* 🔥 always visible */
+  z-index:999;
 }
 
 /* Search Popup */
@@ -240,11 +240,6 @@ function loadReviews(reset=false){
       }
     });
 }
-
-scrollBox.addEventListener("scroll",()=>{
-  scrollBtn.style.display =
-    scrollBox.scrollTop < scrollBox.scrollHeight - scrollBox.clientHeight - 300
-      ? "block" : "none";
 
   if(scrollTimer) return;
   scrollTimer=setTimeout(()=>{
