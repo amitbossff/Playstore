@@ -40,50 +40,28 @@ body{
   overflow:hidden;
 }
 .header{
-  padding:12px 14px;
+  padding:18px 20px;
   border-bottom:1px solid var(--border);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-.header-right{display:flex;gap:8px}
-button{
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.06);
-  color:var(--text);
-  font-weight:600;
-}
-.filter-btn{
-  background:linear-gradient(135deg,var(--secondary),var(--primary));
-  color:#020617;
-}
-.clear-filter{
-  background:rgba(255,255,255,.15);
 }
 .block{padding:14px 16px;display:grid;gap:10px}
 .row-2{display:grid;grid-template-columns:1fr 140px;gap:10px}
 .row-search{display:grid;grid-template-columns:1fr auto;gap:10px}
-input{
+input,button{
   padding:14px;
   border-radius:14px;
   border:1px solid var(--border);
   background:rgba(255,255,255,.06);
   color:var(--text);
 }
-.fetch{
-  background:linear-gradient(135deg,var(--secondary),var(--primary));
-  color:#020617;
-  border:none;
-  padding:14px;
-  border-radius:14px;
-  font-weight:600;
-}
+button{cursor:pointer;font-weight:600}
+.fetch{background:linear-gradient(135deg,var(--secondary),var(--primary));color:#020617}
+.clear{background:rgba(255,255,255,.12)}
+
 .reviews{
   flex:1;
   overflow-y:auto;
   padding:16px;
+  scroll-behavior:smooth;
 }
 .review{
   background:rgba(255,255,255,.07);
@@ -92,28 +70,37 @@ input{
   padding:14px;
   margin-bottom:14px;
 }
-.review.highlight{
-  background:var(--highlight);
-  box-shadow:0 0 0 2px #22d3ee;
-}
+.review.highlight{background:var(--highlight)}
+
 .review-top{display:flex;justify-content:space-between}
 .review-date{font-size:11px;color:var(--muted)}
+.loader{text-align:center;color:var(--muted);display:none;padding:16px}
+
+/* 🔽 Floating navigation */
+.nav-btns{
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  display:none;
+  flex-direction:column;
+  gap:10px;
+}
+.nav-btns button{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  font-size:18px;
+  background:linear-gradient(135deg,var(--secondary),var(--primary));
+  color:#020617;
+  border:none;
+}
 </style>
 </head>
 
 <body>
 <div class="app">
+  <div class="header"><h3>AmitTG☺️</h3></div>
 
-  <!-- HEADER -->
-  <div class="header">
-    <b>AmitTG☺️</b>
-    <div class="header-right">
-      <button class="filter-btn" onclick="applyAllFilter()">Filter</button>
-      <button class="clear-filter" onclick="clearFilter()">✕</button>
-    </div>
-  </div>
-
-  <!-- INPUTS -->
   <div class="block row-2">
     <input id="linkInput" placeholder="Paste Google Play App URL">
     <input id="dateInput" type="date">
@@ -121,48 +108,40 @@ input{
 
   <div class="block row-search">
     <input id="searchName" placeholder="Search your name">
-    <button onclick="clearSearch()">✕</button>
+    <button class="clear" onclick="clearSearch()">✕</button>
   </div>
 
   <div class="block">
-    <button class="fetch" onclick="loadReviews(true)">Fetch Reviews ✔️</button>
+    <button class="fetch" onclick="loadReviews(true)">Check ✔️</button>
   </div>
 
-  <!-- REVIEWS -->
   <div class="reviews" id="scrollBox">
     <div id="output"></div>
+    <div class="loader" id="loader">Loading more reviews…</div>
   </div>
 
+  <!-- 🔽 Floating navigation buttons -->
+  <div class="nav-btns" id="navBtns">
+    <button onclick="prevMatch()">⬆</button>
+    <button onclick="nextMatch()">⬇</button>
+  </div>
 </div>
 
 <script>
-/* 🔹 PREDEFINED FILTER NAMES (ALL TOGETHER) */
-const FILTER_NAMES = [
-  "aman bajpai","aman broom","gyanprakash bajpai","andrew willson",
-  "wiliom willson","realme 8","realme 6","realme 7",
-  "crazey studio live","crazey boy","manju kumari",
-  "aakash dhingra","amitxbhai","ak music world",
-  "johnny williamson","alex williamson","morgan williamson",
-  "enoxy williamson","xtoolmaker","proxy ff",
-  "enoughforyou","gamer boy"
-];
+let nextTokenId=null,loading=false,stopped=false,selectedDate=null,scrollTimer=null;
 
-let nextTokenId=null,loading=false,stopped=false,selectedDate=null;
-let filterActive=false;
+/* 🔍 search state */
+let matches=[];
+let currentIndex=0;
 
-/* LOAD REVIEWS */
 function loadReviews(reset=false){
   if(loading||stopped) return;
+  loading=true;
+  loader.style.display="block";
 
   const link=linkInput.value.trim();
   const date=dateInput.value;
-
-  if(!link || !date){
-    alert("App URL aur Date dono daalo");
-    return;
-  }
-
-  loading=true;
+  if(!link||!date){loading=false;loader.style.display="none";return;}
 
   if(reset){
     output.innerHTML="";
@@ -175,62 +154,85 @@ function loadReviews(reset=false){
     .then(r=>r.json())
     .then(data=>{
       loading=false;
+      loader.style.display="none";
       if(!data.reviews?.length){stopped=true;return;}
       nextTokenId=data.token_id;
 
-      data.reviews.forEach(r=>{
-        if(r.date>selectedDate) return;
-
+      const frag=document.createDocumentFragment();
+      for(const r of data.reviews){
+        if(r.date>selectedDate) continue;
         const d=document.createElement("div");
         d.className="review";
         d.dataset.user=r.user.toLowerCase();
         d.innerHTML=`
-          <div class="review-top">
-            <b>${r.user}</b><span>⭐ ${r.rating}</span>
-          </div>
+          <div class="review-top"><b>${r.user}</b><span>⭐ ${r.rating}</span></div>
           <div class="review-date">${r.date}</div>
           <div>${r.review}</div>`;
-        output.appendChild(d);
-      });
-
-      if(filterActive) applyAllFilter();
+        frag.appendChild(d);
+      }
+      output.appendChild(frag);
     });
 }
 
-/* INFINITE SCROLL */
+/* infinite scroll */
 scrollBox.addEventListener("scroll",()=>{
-  if(scrollBox.scrollTop+scrollBox.clientHeight>=scrollBox.scrollHeight-120){
-    loadReviews(false);
+  if(scrollTimer) return;
+  scrollTimer=setTimeout(()=>{
+    scrollTimer=null;
+    if(scrollBox.scrollTop+scrollBox.clientHeight>=scrollBox.scrollHeight-120){
+      loadReviews(false);
+    }
+  },120);
+});
+
+/* 🔍 SEARCH WITH MULTI MATCH */
+searchName.addEventListener("input",()=>{
+  const val=searchName.value.toLowerCase();
+  matches=[];
+  currentIndex=0;
+
+  document.querySelectorAll(".review").forEach(r=>{
+    r.classList.remove("highlight");
+    if(val && r.dataset.user.includes(val)){
+      matches.push(r);
+    }
+  });
+
+  if(matches.length){
+    navBtns.style.display="flex";
+    highlightCurrent();
+  }else{
+    navBtns.style.display="none";
   }
 });
 
-/* 🔥 APPLY ALL FILTER */
-function applyAllFilter(){
-  filterActive=true;
-  document.querySelectorAll(".review").forEach(r=>{
-    const name=r.dataset.user;
-    if(FILTER_NAMES.some(n=>name.includes(n))){
-      r.style.display="block";
-      r.classList.add("highlight");
-    }else{
-      r.style.display="none";
-    }
-  });
+function highlightCurrent(){
+  matches.forEach(r=>r.classList.remove("highlight"));
+  const el=matches[currentIndex];
+  if(el){
+    el.classList.add("highlight");
+    el.scrollIntoView({behavior:"smooth",block:"center"});
+  }
 }
 
-/* CLEAR FILTER */
-function clearFilter(){
-  filterActive=false;
-  document.querySelectorAll(".review").forEach(r=>{
-    r.style.display="block";
-    r.classList.remove("highlight");
-  });
+function nextMatch(){
+  if(!matches.length) return;
+  currentIndex=(currentIndex+1)%matches.length;
+  highlightCurrent();
 }
 
-/* SEARCH (NORMAL) */
+function prevMatch(){
+  if(!matches.length) return;
+  currentIndex=(currentIndex-1+matches.length)%matches.length;
+  highlightCurrent();
+}
+
 function clearSearch(){
   searchName.value="";
+  matches=[];
+  navBtns.style.display="none";
+  document.querySelectorAll(".review").forEach(r=>r.classList.remove("highlight"));
 }
 </script>
 </body>
-</html>
+  </html>
