@@ -18,7 +18,6 @@ body{
   align-items:center;
   min-height:100vh;
 }
-
 .app{
   width:100%;
   max-width:420px;
@@ -31,13 +30,6 @@ body{
   overflow:hidden;
   position:relative;
 }
-
-.header{
-  padding:14px 16px;
-  font-weight:600;
-  border-bottom:1px solid #e5e7eb;
-}
-
 .block{padding:12px 14px;display:grid;gap:8px}
 .row-2{grid-template-columns:1fr 140px}
 .row-search{grid-template-columns:1fr auto}
@@ -48,14 +40,11 @@ input,button{
   border:1px solid #d1d5db;
   font-size:14px;
 }
-input:focus{outline:none;border-color:#2563eb}
-
 button{
   cursor:pointer;
   background:#2563eb;
   color:#fff;
   border:none;
-  font-weight:500;
 }
 button.clear{
   background:#e5e7eb;
@@ -68,7 +57,6 @@ button.clear{
   padding:12px;
   background:#fafafa;
 }
-
 .review{
   background:#fff;
   border:1px solid #e5e7eb;
@@ -76,47 +64,30 @@ button.clear{
   padding:12px;
   margin-bottom:10px;
 }
-
 .review.highlight{
   background:#fff7cc;
   border-color:#facc15;
 }
 
-.review-top{
-  display:flex;
-  justify-content:space-between;
-  font-weight:600;
-}
-.review-date{
-  font-size:11px;
-  color:#6b7280;
-  margin:4px 0;
+.scroll-btn{
+  position:fixed;
+  right:14px;
+  bottom:80px;
+  padding:10px 14px;
+  border-radius:999px;
+  background:#2563eb;
+  color:#fff;
+  display:block;
+  z-index:999;
 }
 
 .loader{
   text-align:center;
   font-size:13px;
-  color:#6b7280;
   padding:12px;
   display:none;
 }
 
-.scroll-btn{
-  position:fixed;
-  right:14px;
-  bottom:80px;     /* safe height */
-  padding:10px 14px;
-  border-radius:999px;
-  background:#2563eb;
-  color:#fff;
-  font-size:13px;
-  font-weight:600;
-  box-shadow:0 6px 18px rgba(0,0,0,.2);
-  display:block;   /* 🔥 always visible */
-  z-index:999;
-}
-
-/* Search Popup */
 #searchPopup{
   position:fixed;
   bottom:20px;
@@ -127,14 +98,7 @@ button.clear{
   border-radius:10px;
   padding:10px 14px;
   display:none;
-  align-items:center;
   gap:10px;
-  box-shadow:0 8px 25px rgba(0,0,0,.15);
-  font-size:14px;
-}
-#searchPopup button{
-  padding:6px 10px;
-  border-radius:6px;
 }
 </style>
 </head>
@@ -142,7 +106,6 @@ button.clear{
 <body>
 
 <div class="app">
-
   <div class="block row-2">
     <input id="linkInput" placeholder="Google Play App URL">
     <input id="dateInput" type="date">
@@ -162,10 +125,9 @@ button.clear{
     <div class="loader" id="loader">Loading more reviews…</div>
   </div>
 
-  <button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom()">↓ Latest</button>
+  <button class="scroll-btn" onclick="scrollToBottom()">↓ Latest</button>
 </div>
 
-<!-- Search Popup -->
 <div id="searchPopup">
   <button onclick="prevMatch()">◀</button>
   <span id="matchCounter"></span>
@@ -178,7 +140,6 @@ let loading=false;
 let stopped=false;
 let selectedDate=null;
 let scrollTimer=null;
-
 let matches=[];
 let matchIndex=0;
 
@@ -187,67 +148,50 @@ function loadReviews(reset=false){
   loading=true;
   loader.style.display="block";
 
-  const link=linkInput.value.trim();
-  const date=dateInput.value;
-  if(!link||!date){
-    loading=false;
-    loader.style.display="none";
-    return;
-  }
-
   if(reset){
     output.innerHTML="";
     nextTokenId=null;
     stopped=false;
-    selectedDate=date;
+    selectedDate=dateInput.value;
   }
 
-  fetch(`/reviews?link=${encodeURIComponent(link)}&token_id=${nextTokenId||""}`)
+  fetch(`/reviews?link=${encodeURIComponent(linkInput.value)}&token_id=${nextTokenId||""}`)
     .then(r=>r.json())
     .then(data=>{
       loading=false;
       loader.style.display="none";
 
-      if(!data.reviews||data.reviews.length===0){
+      if(!data.reviews?.length){
         stopped=true;
         return;
       }
 
       nextTokenId=data.token_id;
-      let added=0;
-      const frag=document.createDocumentFragment();
 
-      for(const r of data.reviews){
-        if(r.date>selectedDate) continue;
-        added++;
+      data.reviews.forEach(r=>{
+        if(r.date>selectedDate) return;
         const div=document.createElement("div");
         div.className="review";
         div.dataset.user=r.user.toLowerCase();
         div.innerHTML=`
-          <div class="review-top">
-            <span>${r.user}</span>
-            <span>⭐ ${r.rating}</span>
-          </div>
-          <div class="review-date">${r.date}</div>
-          <div>${r.review}</div>
+          <b>${r.user}</b> ⭐ ${r.rating}<br>
+          <small>${r.date}</small><br>
+          ${r.review}
         `;
-        frag.appendChild(div);
-      }
-      output.appendChild(frag);
-
-      if(added===0){
-        setTimeout(()=>loadReviews(false),100);
-      }
+        output.appendChild(div);
+      });
     });
 }
 
+/* ✅ FIXED SCROLL LISTENER */
+scrollBox.addEventListener("scroll",()=>{
   if(scrollTimer) return;
   scrollTimer=setTimeout(()=>{
     scrollTimer=null;
-    if(scrollBox.scrollTop+scrollBox.clientHeight>=scrollBox.scrollHeight-120){
+    if(scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 120){
       loadReviews(false);
     }
-  },120);
+  },150);
 });
 
 function scrollToBottom(){
@@ -255,60 +199,28 @@ function scrollToBottom(){
   setTimeout(()=>loadReviews(false),600);
 }
 
-/* Search Logic */
+/* SEARCH */
 searchName.addEventListener("input",()=>{
   const v=searchName.value.toLowerCase();
-  document.querySelectorAll(".review").forEach(r=>r.classList.remove("highlight"));
-  searchPopup.style.display="none";
-  matches=[];
-  matchIndex=0;
-
-  if(!v) return;
-
   matches=[...document.querySelectorAll(".review")]
     .filter(r=>r.dataset.user.includes(v));
-
-  if(matches.length===0) return;
-
+  matchIndex=0;
+  if(!matches.length) return;
   highlightMatch(0);
-
-  if(matches.length>1){
-    searchPopup.style.display="flex";
-    updateCounter();
-  }
+  searchPopup.style.display=matches.length>1?"flex":"none";
+  updateCounter();
 });
 
 function highlightMatch(i){
   matches.forEach(r=>r.classList.remove("highlight"));
-  const el=matches[i];
-  el.classList.add("highlight");
-  el.scrollIntoView({behavior:"smooth",block:"center"});
+  matches[i].classList.add("highlight");
+  matches[i].scrollIntoView({behavior:"smooth",block:"center"});
 }
 
-function updateCounter(){
-  matchCounter.textContent=`${matchIndex+1} / ${matches.length}`;
-}
-
-function nextMatch(){
-  if(!matches.length) return;
-  matchIndex=(matchIndex+1)%matches.length;
-  highlightMatch(matchIndex);
-  updateCounter();
-}
-
-function prevMatch(){
-  if(!matches.length) return;
-  matchIndex=(matchIndex-1+matches.length)%matches.length;
-  highlightMatch(matchIndex);
-  updateCounter();
-}
-
-function clearSearch(){
-  searchName.value="";
-  matches=[];
-  document.querySelectorAll(".review").forEach(r=>r.classList.remove("highlight"));
-  searchPopup.style.display="none";
-}
+function nextMatch(){matchIndex=(matchIndex+1)%matches.length;highlightMatch(matchIndex);updateCounter();}
+function prevMatch(){matchIndex=(matchIndex-1+matches.length)%matches.length;highlightMatch(matchIndex);updateCounter();}
+function updateCounter(){matchCounter.textContent=`${matchIndex+1}/${matches.length}`;}
+function clearSearch(){searchName.value="";searchPopup.style.display="none";}
 </script>
 
 </body>
