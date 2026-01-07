@@ -17,10 +17,8 @@ body{
   justify-content:center;
   align-items:center;
   min-height:100vh;
-  color:#111;
 }
 
-/* App Container */
 .app{
   width:100%;
   max-width:420px;
@@ -31,43 +29,26 @@ body{
   display:flex;
   flex-direction:column;
   overflow:hidden;
+  position:relative;
 }
 
-/* Header */
 .header{
   padding:14px 16px;
-  font-size:16px;
   font-weight:600;
   border-bottom:1px solid #e5e7eb;
 }
 
-/* Blocks */
-.block{
-  padding:12px 14px;
-  display:grid;
-  gap:8px;
-}
+.block{padding:12px 14px;display:grid;gap:8px}
+.row-2{grid-template-columns:1fr 140px}
+.row-search{grid-template-columns:1fr auto}
 
-.row-2{
-  grid-template-columns:1fr 140px;
-}
-
-.row-search{
-  grid-template-columns:1fr auto;
-}
-
-/* Inputs & Buttons */
 input,button{
   padding:11px 12px;
   border-radius:8px;
   border:1px solid #d1d5db;
   font-size:14px;
 }
-
-input:focus{
-  outline:none;
-  border-color:#2563eb;
-}
+input:focus{outline:none;border-color:#2563eb}
 
 button{
   cursor:pointer;
@@ -76,13 +57,11 @@ button{
   border:none;
   font-weight:500;
 }
-
 button.clear{
   background:#e5e7eb;
   color:#111;
 }
 
-/* Reviews Area */
 .reviews{
   flex:1;
   overflow-y:auto;
@@ -99,30 +78,62 @@ button.clear{
 }
 
 .review.highlight{
-  background:#eef2ff;
-  border-color:#2563eb;
+  background:#fff7cc;
+  border-color:#facc15;
 }
 
 .review-top{
   display:flex;
   justify-content:space-between;
   font-weight:600;
-  font-size:14px;
 }
-
 .review-date{
   font-size:11px;
   color:#6b7280;
   margin:4px 0;
 }
 
-/* Loader */
 .loader{
   text-align:center;
   font-size:13px;
   color:#6b7280;
   padding:12px;
   display:none;
+}
+
+.scroll-btn{
+  position:absolute;
+  right:14px;
+  bottom:18px;
+  padding:10px 14px;
+  border-radius:999px;
+  background:#2563eb;
+  color:#fff;
+  font-size:13px;
+  font-weight:600;
+  box-shadow:0 6px 18px rgba(0,0,0,.2);
+  display:none;
+}
+
+/* Search Popup */
+#searchPopup{
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:10px;
+  padding:10px 14px;
+  display:none;
+  align-items:center;
+  gap:10px;
+  box-shadow:0 8px 25px rgba(0,0,0,.15);
+  font-size:14px;
+}
+#searchPopup button{
+  padding:6px 10px;
+  border-radius:6px;
 }
 </style>
 </head>
@@ -150,60 +161,69 @@ button.clear{
     <div id="output"></div>
     <div class="loader" id="loader">Loading more reviews…</div>
   </div>
+
+  <button class="scroll-btn" id="scrollBtn" onclick="scrollToBottom()">↓ Latest</button>
+</div>
+
+<!-- Search Popup -->
+<div id="searchPopup">
+  <button onclick="prevMatch()">◀</button>
+  <span id="matchCounter"></span>
+  <button onclick="nextMatch()">▶</button>
 </div>
 
 <script>
-let nextTokenId = null;
-let loading = false;
-let stopped = false;
-let selectedDate = null;
-let scrollTimer = null;
+let nextTokenId=null;
+let loading=false;
+let stopped=false;
+let selectedDate=null;
+let scrollTimer=null;
+
+let matches=[];
+let matchIndex=0;
 
 function loadReviews(reset=false){
-  if(loading || stopped) return;
-  loading = true;
-  loader.style.display = "block";
+  if(loading||stopped) return;
+  loading=true;
+  loader.style.display="block";
 
-  const link = linkInput.value.trim();
-  const date = dateInput.value;
-
-  if(!link || !date){
-    loading = false;
-    loader.style.display = "none";
+  const link=linkInput.value.trim();
+  const date=dateInput.value;
+  if(!link||!date){
+    loading=false;
+    loader.style.display="none";
     return;
   }
 
   if(reset){
-    output.innerHTML = "";
-    nextTokenId = null;
-    stopped = false;
-    selectedDate = date;
+    output.innerHTML="";
+    nextTokenId=null;
+    stopped=false;
+    selectedDate=date;
   }
 
-  fetch(`/reviews?link=${encodeURIComponent(link)}&token_id=${nextTokenId || ""}`)
-    .then(r => r.json())
-    .then(data => {
-      loading = false;
-      loader.style.display = "none";
+  fetch(`/reviews?link=${encodeURIComponent(link)}&token_id=${nextTokenId||""}`)
+    .then(r=>r.json())
+    .then(data=>{
+      loading=false;
+      loader.style.display="none";
 
-      if(!data.reviews || data.reviews.length === 0){
-        stopped = true;
+      if(!data.reviews||data.reviews.length===0){
+        stopped=true;
         return;
       }
 
-      nextTokenId = data.token_id;
-
-      let added = 0;
-      const frag = document.createDocumentFragment();
+      nextTokenId=data.token_id;
+      let added=0;
+      const frag=document.createDocumentFragment();
 
       for(const r of data.reviews){
-        if(r.date > selectedDate) continue;
+        if(r.date>selectedDate) continue;
         added++;
-
-        const div = document.createElement("div");
-        div.className = "review";
-        div.dataset.user = r.user.toLowerCase();
-        div.innerHTML = `
+        const div=document.createElement("div");
+        div.className="review";
+        div.dataset.user=r.user.toLowerCase();
+        div.innerHTML=`
           <div class="review-top">
             <span>${r.user}</span>
             <span>⭐ ${r.rating}</span>
@@ -213,50 +233,88 @@ function loadReviews(reset=false){
         `;
         frag.appendChild(div);
       }
-
       output.appendChild(frag);
 
-      if(added === 0){
+      if(added===0){
         setTimeout(()=>loadReviews(false),100);
-        return;
       }
-
-      if(scrollBox.scrollHeight <= scrollBox.clientHeight + 50){
-        loadReviews(false);
-      }
-    })
-    .catch(()=>{
-      loading = false;
-      loader.style.display = "none";
     });
 }
 
 scrollBox.addEventListener("scroll",()=>{
+  scrollBtn.style.display =
+    scrollBox.scrollTop < scrollBox.scrollHeight - scrollBox.clientHeight - 300
+      ? "block" : "none";
+
   if(scrollTimer) return;
-  scrollTimer = setTimeout(()=>{
-    scrollTimer = null;
-    if(scrollBox.scrollTop + scrollBox.clientHeight >= scrollBox.scrollHeight - 120){
+  scrollTimer=setTimeout(()=>{
+    scrollTimer=null;
+    if(scrollBox.scrollTop+scrollBox.clientHeight>=scrollBox.scrollHeight-120){
       loadReviews(false);
     }
   },120);
 });
 
+function scrollToBottom(){
+  scrollBox.scrollTo({top:scrollBox.scrollHeight,behavior:"smooth"});
+  setTimeout(()=>loadReviews(false),600);
+}
+
+/* Search Logic */
 searchName.addEventListener("input",()=>{
-  const v = searchName.value.toLowerCase();
+  const v=searchName.value.toLowerCase();
   document.querySelectorAll(".review").forEach(r=>r.classList.remove("highlight"));
+  searchPopup.style.display="none";
+  matches=[];
+  matchIndex=0;
+
   if(!v) return;
-  const m = [...document.querySelectorAll(".review")].find(r=>r.dataset.user.includes(v));
-  if(m){
-    m.classList.add("highlight");
-    m.scrollIntoView({behavior:"smooth",block:"center"});
+
+  matches=[...document.querySelectorAll(".review")]
+    .filter(r=>r.dataset.user.includes(v));
+
+  if(matches.length===0) return;
+
+  highlightMatch(0);
+
+  if(matches.length>1){
+    searchPopup.style.display="flex";
+    updateCounter();
   }
 });
 
+function highlightMatch(i){
+  matches.forEach(r=>r.classList.remove("highlight"));
+  const el=matches[i];
+  el.classList.add("highlight");
+  el.scrollIntoView({behavior:"smooth",block:"center"});
+}
+
+function updateCounter(){
+  matchCounter.textContent=`${matchIndex+1} / ${matches.length}`;
+}
+
+function nextMatch(){
+  if(!matches.length) return;
+  matchIndex=(matchIndex+1)%matches.length;
+  highlightMatch(matchIndex);
+  updateCounter();
+}
+
+function prevMatch(){
+  if(!matches.length) return;
+  matchIndex=(matchIndex-1+matches.length)%matches.length;
+  highlightMatch(matchIndex);
+  updateCounter();
+}
+
 function clearSearch(){
-  searchName.value = "";
+  searchName.value="";
+  matches=[];
   document.querySelectorAll(".review").forEach(r=>r.classList.remove("highlight"));
+  searchPopup.style.display="none";
 }
 </script>
 
 </body>
-                       </html>
+  </html>
